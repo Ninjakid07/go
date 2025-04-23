@@ -4,13 +4,12 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
-from std_msgs.msg import Empty
 import tf2_ros
 import math
 
 class PathRecorder(Node):
     """
-    Node that records the robot's path and publishes it when triggered.
+    Node that records the robot's path and publishes it continuously.
     """
     def __init__(self):
         super().__init__('path_recorder')
@@ -25,22 +24,14 @@ class PathRecorder(Node):
         self.tf_buffer = tf2_ros.Buffer(cache_time=rclpy.duration.Duration(seconds=30.0))
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
         
-        # Set up path publisher (will publish when triggered)
-        self.path_publisher = self.create_publisher(Path, '/recorded_path', 10)
-        
-        # Set up trigger subscriber
-        self.trigger_sub = self.create_subscription(
-            Empty,
-            '/trigger_publish_path',
-            self.trigger_callback,
-            10
-        )
+        # Set up path publisher (will publish continuously)
+        self.path_publisher = self.create_publisher(Path, '/path_explore', 10)
         
         # Create timer for tracking (1 Hz)
         self.timer = self.create_timer(1.0, self.track_position)
         
         self.get_logger().info('Path recorder initialized')
-        self.get_logger().info('Waiting for trigger on /trigger_publish_path')
+        self.get_logger().info('Recording and publishing path continuously to /path_explore')
     
     def track_position(self):
         """
@@ -73,7 +64,7 @@ class PathRecorder(Node):
                 dy = y - self.last_position[1]
                 distance = math.sqrt(dx*dx + dy*dy)
                 
-                # Record if moved at least 0.1 meters
+                # Record if moved at least 0.5 meters
                 if distance >= 0.5:
                     record_position = True
             
@@ -91,27 +82,18 @@ class PathRecorder(Node):
                 self.recorded_poses.append(pose)
                 self.last_position = (x, y)
                 
-                # Update path (but don't publish yet - wait for trigger)
+                # Update path
                 self.path.header.stamp = current_time.to_msg()
                 self.path.poses = self.recorded_poses
                 
                 self.get_logger().info(f'Recorded position: ({x:.2f}, {y:.2f}), Total points: {len(self.recorded_poses)}')
+                
+                # Publish the updated path immediately
+                self.path_publisher.publish(self.path)
+                self.get_logger().info(f'Published updated path with {len(self.recorded_poses)} points')
             
         except tf2_ros.TransformException as ex:
             self.get_logger().warning(f'Could not transform: {ex}')
-    
-    def trigger_callback(self, msg):
-        """
-        Callback for when the trigger is received.
-        Publishes the recorded path.
-        """
-        self.get_logger().info(f'Trigger received! Publishing path with {len(self.recorded_poses)} points')
-        
-        # Set the current timestamp
-        self.path.header.stamp = self.get_clock().now().to_msg()
-        
-        # Publish the path
-        self.path_publisher.publish(self.path)
     
     def get_recorded_path(self):
         """

@@ -23,10 +23,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'position_tracker = go.position_tracker:main',
-            'return_home = go.return_home_simple:main',
             'path_rec = go.path_rec:main',
             'rev_waypoint = go.rev_waypoint:main',
+            'path_recorder_navigator = go.path_rec_nav:main',
         ],
     },
 )

@@ -115,7 +115,7 @@ class PathRecorderNavigator(Node):
                 distance = math.sqrt(dx*dx + dy*dy)
                 
                 # Record if moved at least 0.5 meters
-                if distance >= 0.5:
+                if distance >= 0.8:
                     record_position = True
             
             if record_position:
